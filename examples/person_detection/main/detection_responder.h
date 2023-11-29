@@ -19,6 +19,9 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_MICRO_EXAMPLES_PERSON_DETECTION_DETECTION_RESPONDER_H_
 #define TENSORFLOW_LITE_MICRO_EXAMPLES_PERSON_DETECTION_DETECTION_RESPONDER_H_
 
+// For displaying PD status via built-in LED
+#define LED_BUILTIN_GPIO GPIO_NUM_21
+
 #include "tensorflow/lite/c/common.h"
 
 // Called every time the results of a person detection run are available. The

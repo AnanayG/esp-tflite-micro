@@ -30,6 +30,12 @@ void setup();
 // compatibility.
 void loop();
 
+// Runs during PRODUCTION mode to enable deep sleep with PIR sensor wakeup.
+void deep_sleep_start();
+
+// Runs during PRODUCTION mode to display information when waking up from deep sleep.
+void deep_sleep_wakeup();
+
 #ifdef __cplusplus
 }
 #endif

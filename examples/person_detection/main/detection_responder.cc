@@ -21,6 +21,10 @@ limitations under the License.
 
 #include "detection_responder.h"
 #include "tensorflow/lite/micro/micro_log.h"
+#include "driver/gpio.h"
+
+// For displaying PD status via built-in LED
+#include "driver/gpio.h"
 
 #include "esp_main.h"
 #if DISPLAY_SUPPORT
@@ -60,7 +64,8 @@ static void create_gui(void)
 
 void RespondToDetection(float person_score, float no_person_score) {
   int person_score_int = (person_score) * 100 + 0.5;
-  (void) no_person_score; // unused
+  int no_person_score_int = (no_person_score) * 100 + 0.5;
+
 #if DISPLAY_SUPPORT
     if (!camera_canvas) {
       create_gui();
@@ -77,6 +82,11 @@ void RespondToDetection(float person_score, float no_person_score) {
     lv_canvas_set_buffer(camera_canvas, buf, IMG_WD, IMG_HT, LV_IMG_CF_TRUE_COLOR);
     bsp_display_unlock();
 #endif // DISPLAY_SUPPORT
-  MicroPrintf("person score:%d%%, no person score %d%%",
-              person_score_int, 100 - person_score_int);
+
+  // Turn on on-board LED when person is detected
+  // Built-in LED appears to turn on when output is LOW
+  gpio_set_level(LED_BUILTIN_GPIO, !(person_score > no_person_score));
+
+  // Display person score and no person score to terminal
+  MicroPrintf("person score:%d%%, no person score %d%%", person_score_int, no_person_score_int);
 }

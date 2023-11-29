@@ -25,14 +25,28 @@ limitations under the License.
 #include "esp_cli.h"
 #endif
 
+// Uncomment this line to enable PRODUCTION mode
+// In default mode, PD is run on a loop with no deep sleep enabled
+#define PRODUCTION
+
 void tf_main(void) {
-  setup();
 #if CLI_ONLY_INFERENCE
+  setup();
   esp_cli_start();
   vTaskDelay(portMAX_DELAY);
+#elif defined(PRODUCTION)
+  deep_sleep_wakeup();
+  setup();
+  loop();
+  while(true){
+    vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
+  }
+  deep_sleep_start();
 #else
-  while (true) {
+  setup();
+  while (true){
     loop();
+    vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
   }
 #endif
 }

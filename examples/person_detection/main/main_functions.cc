@@ -30,33 +30,56 @@ limitations under the License.
 #include <esp_heap_caps.h>
 #include <esp_timer.h>
 #include <esp_log.h>
+#include "esp_sleep.h"
 #include "esp_main.h"
+
+// For measuring execution time
+#include <chrono>
+using namespace std::chrono;
+
+// For displaying PD status via built-in LED
+#include "driver/gpio.h"
+
+// For deep sleep
+#include "driver/rtc_io.h"
+#define EXT_WAKEUP_PIN_3 GPIO_NUM_3
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace {
-const tflite::Model* model = nullptr;
-tflite::MicroInterpreter* interpreter = nullptr;
-TfLiteTensor* input = nullptr;
+  // Measure execution time
+  int64_t start_time_total = 0;
 
-// In order to use optimized tensorflow lite kernels, a signed int8_t quantized
-// model is preferred over the legacy unsigned model format. This means that
-// throughout this project, input images must be converted from unisgned to
-// signed format. The easiest and quickest way to convert from unsigned to
-// signed 8-bit integers is to subtract 128 from the unsigned value to get a
-// signed value.
+  // For deep sleep
+  static RTC_DATA_ATTR struct timeval sleep_enter_time;
 
-#ifdef CONFIG_IDF_TARGET_ESP32S3
-constexpr int scratchBufSize = 39 * 1024;
-#else
-constexpr int scratchBufSize = 0;
-#endif
-// An area of memory to use for input, output, and intermediate arrays.
-constexpr int kTensorArenaSize = 81 * 1024 + scratchBufSize;
-static uint8_t *tensor_arena;//[kTensorArenaSize]; // Maybe we should move this to external
+  const tflite::Model* model = nullptr;
+  tflite::MicroInterpreter* interpreter = nullptr;
+  TfLiteTensor* input = nullptr;
+
+  // In order to use optimized tensorflow lite kernels, a signed int8_t quantized
+  // model is preferred over the legacy unsigned model format. This means that
+  // throughout this project, input images must be converted from unisgned to
+  // signed format. The easiest and quickest way to convert from unsigned to
+  // signed 8-bit integers is to subtract 128 from the unsigned value to get a
+  // signed value.
+
+  #ifdef CONFIG_IDF_TARGET_ESP32S3
+  constexpr int scratchBufSize = 39 * 1024;
+  #else
+  constexpr int scratchBufSize = 0;
+  #endif
+  // An area of memory to use for input, output, and intermediate arrays.
+  constexpr int kTensorArenaSize = 81 * 1024 + scratchBufSize;
+  static uint8_t *tensor_arena;//[kTensorArenaSize]; // Maybe we should move this to external
 }  // namespace
 
 // The name of this function is important for Arduino compatibility.
 void setup() {
+  // Set up on-board LED for displaying PD status
+  gpio_reset_pin(LED_BUILTIN_GPIO);
+  gpio_set_direction(LED_BUILTIN_GPIO, GPIO_MODE_OUTPUT);
+  gpio_set_level(LED_BUILTIN_GPIO, 1);
+
   // Map the model into a usable data structure. This doesn't involve any
   // copying or parsing, it's a very lightweight operation.
   model = tflite::GetModel(g_person_detect_model_data);
@@ -115,6 +138,8 @@ void setup() {
 #endif
 }
 
+
+
 #ifndef CLI_ONLY_INFERENCE
 // The name of this function is important for Arduino compatibility.
 void loop() {
@@ -134,13 +159,17 @@ void loop() {
   int8_t person_score = output->data.uint8[kPersonIndex];
   int8_t no_person_score = output->data.uint8[kNotAPersonIndex];
 
-  float person_score_f =
-      (person_score - output->params.zero_point) * output->params.scale;
-  float no_person_score_f =
-      (no_person_score - output->params.zero_point) * output->params.scale;
+  float person_score_f = (person_score - output->params.zero_point) * output->params.scale;
+  float no_person_score_f = (no_person_score - output->params.zero_point) * output->params.scale;
 
   // Respond to detection
   RespondToDetection(person_score_f, no_person_score_f);
+
+  // Measure execution time
+  int64_t end_time = esp_timer_get_time();
+  int64_t duration = end_time - start_time_total; // Time in microseconds
+  MicroPrintf("Total execution time: %lld microseconds\n", duration);
+
   vTaskDelay(1); // to avoid watchdog trigger
 }
 #endif
@@ -204,4 +233,29 @@ void run_inference(void *ptr) {
   float no_person_score_f =
       (no_person_score - output->params.zero_point) * output->params.scale;
   RespondToDetection(person_score_f, no_person_score_f);
+}
+
+
+
+void deep_sleep_start(){
+  // Enable deep sleep EXT0 wakeup (on HIGH)
+  ESP_ERROR_CHECK(esp_sleep_enable_ext0_wakeup(EXT_WAKEUP_PIN_3, 1));
+  ESP_ERROR_CHECK(rtc_gpio_pullup_dis(EXT_WAKEUP_PIN_3));  // Disable pullup
+  ESP_ERROR_CHECK(rtc_gpio_pulldown_en(EXT_WAKEUP_PIN_3)); // Enable  pulldown
+
+  // Enter deep sleep
+  gettimeofday(&sleep_enter_time, NULL); // get deep sleep enter time
+  esp_deep_sleep_start();
+}
+
+
+
+void deep_sleep_wakeup(){
+  // Measure execution time
+  start_time_total = esp_timer_get_time();
+
+  struct timeval now;
+  gettimeofday(&now, NULL);
+  int sleep_time_s = now.tv_sec - sleep_enter_time.tv_sec;
+  MicroPrintf("Waken up from deep sleep. Time spent in deep sleep: %dms\n", sleep_time_s);
 }
