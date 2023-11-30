@@ -46,9 +46,6 @@ using namespace std::chrono;
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace {
-  // Measure execution time
-  int64_t start_time_total = 0;
-
   // For deep sleep
   static RTC_DATA_ATTR struct timeval sleep_enter_time;
 
@@ -74,7 +71,7 @@ namespace {
 }  // namespace
 
 // The name of this function is important for Arduino compatibility.
-void setup() {
+void setup() { 
   // Set up on-board LED for displaying PD status
   gpio_reset_pin(LED_BUILTIN_GPIO);
   gpio_set_direction(LED_BUILTIN_GPIO, GPIO_MODE_OUTPUT);
@@ -143,6 +140,9 @@ void setup() {
 #ifndef CLI_ONLY_INFERENCE
 // The name of this function is important for Arduino compatibility.
 void loop() {
+  // Measure PD_total time
+  int64_t start_time_PD = esp_timer_get_time();
+
   // Get image from provider.
   if (kTfLiteOk != GetImage(kNumCols, kNumRows, kNumChannels, input->data.int8)) {
     MicroPrintf("Image capture failed.");
@@ -165,11 +165,10 @@ void loop() {
   // Respond to detection
   RespondToDetection(person_score_f, no_person_score_f);
 
-  // Measure execution time
-  int64_t end_time = esp_timer_get_time();
-  int64_t duration = end_time - start_time_total; // Time in microseconds
-  MicroPrintf("Total execution time: %lld microseconds\n", duration);
-
+  // Measure PD_total time
+  int64_t end_time_PD = esp_timer_get_time();
+  MicroPrintf("Total PD time taken: %lldms", end_time_PD - start_time_PD); // Time in microseconds
+  
   vTaskDelay(1); // to avoid watchdog trigger
 }
 #endif
@@ -251,9 +250,6 @@ void deep_sleep_start(){
 
 
 void deep_sleep_wakeup(){
-  // Measure execution time
-  start_time_total = esp_timer_get_time();
-
   struct timeval now;
   gettimeofday(&now, NULL);
   int sleep_time_s = now.tv_sec - sleep_enter_time.tv_sec;
