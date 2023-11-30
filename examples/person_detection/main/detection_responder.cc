@@ -83,6 +83,16 @@ void RespondToDetection(float person_score, float no_person_score) {
     bsp_display_unlock();
 #endif // DISPLAY_SUPPORT
 
+  // Code for video recording 
+  // If significant differences in this code section exist between the two storing modes, move this section to below
+  // MicroPrintf("Beginning footage capturing...");
+
+#if defined(SD_CARD)
+  // Code for storing captured footage to SD card
+#elif defined(STREAMING)
+  // Code for streaming captured footage over the internet
+#endif // Storing mode
+
   // Turn on on-board LED when person is detected
   // Built-in LED appears to turn on when output is LOW
   gpio_set_level(LED_BUILTIN_GPIO, !(person_score > no_person_score));
