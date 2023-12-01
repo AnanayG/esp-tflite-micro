@@ -42,7 +42,7 @@ using namespace std::chrono;
 
 // For deep sleep
 #include "driver/rtc_io.h"
-#define EXT_WAKEUP_PIN_3 GPIO_NUM_3
+#define EXT_WAKEUP_PIN GPIO_NUM_2 // GPIO 3 (possibly) taken by CS pin of SD card
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace {
@@ -167,7 +167,7 @@ void loop() {
 
   // Measure PD_total time
   int64_t end_time_PD = esp_timer_get_time();
-  MicroPrintf("Total PD time taken: %lldms", end_time_PD - start_time_PD); // Time in microseconds
+  MicroPrintf("Total PD time taken: %lldms\n", end_time_PD - start_time_PD); // Time in microseconds
   
   vTaskDelay(1); // to avoid watchdog trigger
 }
@@ -236,14 +236,42 @@ void run_inference(void *ptr) {
 
 
 
-void deep_sleep_start(){
+void deep_sleep_start_ext0(){
+  // Isolate all pins to Sense board
+  gpio_num_t sense_gpio_pins[] = {
+    // SD card
+    GPIO_NUM_3, 
+    GPIO_NUM_7, 
+    GPIO_NUM_8, 
+    GPIO_NUM_9,
+    // Camera
+    //GPIO_NUM_10, // XMCLK pin, causes camera init to fail after wakeup
+    GPIO_NUM_11, 
+    GPIO_NUM_12, 
+    GPIO_NUM_13,
+    GPIO_NUM_14, 
+    GPIO_NUM_15, 
+    GPIO_NUM_16, 
+    GPIO_NUM_17,
+    GPIO_NUM_18
+    };
+
+  int num_pins = sizeof(sense_gpio_pins) / sizeof(sense_gpio_pins[0]);
+  for (int i = 0; i < num_pins; ++i) {
+    rtc_gpio_isolate(sense_gpio_pins[i]);
+  }
+
+  // Causes system to crash; RTC peripherals said to be default OFF in deep sleep
+  // esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
+
   // Enable deep sleep EXT0 wakeup (on HIGH)
-  ESP_ERROR_CHECK(esp_sleep_enable_ext0_wakeup(EXT_WAKEUP_PIN_3, 1));
-  ESP_ERROR_CHECK(rtc_gpio_pullup_dis(EXT_WAKEUP_PIN_3));  // Disable pullup
-  ESP_ERROR_CHECK(rtc_gpio_pulldown_en(EXT_WAKEUP_PIN_3)); // Enable  pulldown
+  ESP_ERROR_CHECK(esp_sleep_enable_ext0_wakeup(EXT_WAKEUP_PIN, 1));
+  ESP_ERROR_CHECK(rtc_gpio_pullup_dis(EXT_WAKEUP_PIN));  // Disable pullup
+  ESP_ERROR_CHECK(rtc_gpio_pulldown_en(EXT_WAKEUP_PIN)); // Enable  pulldown
 
   // Enter deep sleep
-  gettimeofday(&sleep_enter_time, NULL); // get deep sleep enter time
+  gettimeofday(&sleep_enter_time, NULL); // Get deep sleep enter time
+  ESP_LOGI("BOOT", "Entering deep sleep now");
   esp_deep_sleep_start();
 }
 
@@ -254,4 +282,46 @@ void deep_sleep_wakeup(){
   gettimeofday(&now, NULL);
   int sleep_time_s = now.tv_sec - sleep_enter_time.tv_sec;
   MicroPrintf("Waken up from deep sleep. Time spent in deep sleep: %dms\n", sleep_time_s);
+
+  //gpio_dump_io_configuration()
+}
+
+
+
+void deep_sleep_start_ext1(){
+  // Isolate all pins to Sense board
+  gpio_num_t sense_gpio_pins[] = {
+    // SD card
+    GPIO_NUM_3, 
+    GPIO_NUM_7, 
+    GPIO_NUM_8, 
+    GPIO_NUM_9,
+    // Camera
+    //GPIO_NUM_10, // XMCLK pin, causes camera init to fail after wakeup
+    GPIO_NUM_11, 
+    GPIO_NUM_12, 
+    GPIO_NUM_13,
+    GPIO_NUM_14, 
+    GPIO_NUM_15, 
+    GPIO_NUM_16, 
+    GPIO_NUM_17,
+    GPIO_NUM_18
+    };
+
+  int num_pins = sizeof(sense_gpio_pins) / sizeof(sense_gpio_pins[0]);
+  for (int i = 0; i < num_pins; ++i) {
+    rtc_gpio_isolate(sense_gpio_pins[i]);
+  }
+
+  const int ext_wakeup_pin_1 = 2; // Wakeup on GPIO 2
+  const uint64_t ext_wakeup_pin_1_mask = 1ULL << ext_wakeup_pin_1;
+
+  ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(ext_wakeup_pin_1_mask, ESP_EXT1_WAKEUP_ANY_HIGH));
+  ESP_ERROR_CHECK(rtc_gpio_pullup_dis(EXT_WAKEUP_PIN));
+  ESP_ERROR_CHECK(rtc_gpio_pulldown_en(EXT_WAKEUP_PIN));
+
+  // Enter deep sleep
+  gettimeofday(&sleep_enter_time, NULL); // Get deep sleep enter time
+  ESP_LOGI("BOOT", "Entering deep sleep now");
+  esp_deep_sleep_start();
 }

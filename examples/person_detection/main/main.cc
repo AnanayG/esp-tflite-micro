@@ -38,10 +38,13 @@ void tf_main(void) {
   deep_sleep_wakeup();
   setup();
   loop();
-  while(true){
-    vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
-  }
-  deep_sleep_start();
+  // Infinite loop to avoid entering deep sleep. 
+  // Used durin development to avoid being unable to flash new program due to deep sleep.
+  vTaskDelay(pdMS_TO_TICKS(5000)); // Stay on for 5 seconds
+  //while(true){
+  //  vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
+  //}
+  deep_sleep_start_ext1();
 #else
   setup();
   while (true){
