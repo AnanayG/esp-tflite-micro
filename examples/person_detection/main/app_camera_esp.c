@@ -65,7 +65,7 @@ int app_camera_init() {
   config.pin_reset =     CAMERA_PIN_RESET;
   config.xclk_freq_hz =  XCLK_FREQ_HZ;
   // config.jpeg_quality =  10; // For streaming
-  config.fb_count =      1; // fb = 1 seems to work now but didn't work at one point.
+  config.fb_count =      2; // fb = 1 seems to work now but didn't work at one point.
   config.fb_location =   CAMERA_FB_IN_DRAM;
   config.grab_mode =     CAMERA_GRAB_LATEST; // CAMERA_GRAB_LATEST is needed for the PD to be run on the latest image (with fb_count = 2)
 #endif // CONFIG_TFLITE_USE_BSP

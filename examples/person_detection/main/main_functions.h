@@ -25,17 +25,20 @@ extern "C" {
 // to be setup() for Arduino compatibility.
 void setup();
 
+// Initializes the camera and captures one frame of image
+void cam_capture_frame(void *pvParameters);
+
 // Runs one iteration of data gathering and inference. This should be called
 // repeatedly from the application code. The name needs to be loop() for Arduino
 // compatibility.
 void loop();
 
 // Runs during PRODUCTION mode to enable deep sleep with PIR sensor wakeup.
-void deep_sleep_start_ext0();
-void deep_sleep_start_ext1();
+void deep_sleep_start();
 
 // Runs during PRODUCTION mode to display information when waking up from deep sleep.
-void deep_sleep_wakeup();
+// Performs PIR initialization on intial boot.
+void wakeup();
 
 #ifdef __cplusplus
 }

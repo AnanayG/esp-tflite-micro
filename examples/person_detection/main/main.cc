@@ -35,16 +35,32 @@ void tf_main(void) {
   esp_cli_start();
   vTaskDelay(portMAX_DELAY);
 #elif defined(PRODUCTION)
-  deep_sleep_wakeup();
-  setup();
+  wakeup();
+
+  // Get task handle for current (main) task
+  TaskHandle_t mainTaskHandle = xTaskGetCurrentTaskHandle();
+
+  // Create cam_setup task on core 0 and pass in main task handle for notification
+  // Runs slower when assigned to core 1
+  xTaskCreatePinnedToCore((TaskFunction_t)&cam_capture_frame, "cam_capture_frame", 4 * 1024, (void *)mainTaskHandle, 10, NULL, 0);
+  
+  // Create setup task on core 1
+  xTaskCreatePinnedToCore((TaskFunction_t)&setup, "setup_task", 4 * 1024, NULL, 10, NULL, 1);
+
+  // Wait for the notification from both tasks
+  ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
   loop();
-  // Infinite loop to avoid entering deep sleep. 
-  // Used durin development to avoid being unable to flash new program due to deep sleep.
+
+  // Used during development to avoid being unable to flash new program due to deep sleep.
   vTaskDelay(pdMS_TO_TICKS(5000)); // Stay on for 5 seconds
+  
+  // Infinite loop to avoid entering deep sleep. 
   //while(true){
   //  vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
   //}
-  deep_sleep_start_ext1();
+
+  deep_sleep_start();
 #else
   setup();
   while (true){

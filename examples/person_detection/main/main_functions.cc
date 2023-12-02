@@ -48,6 +48,7 @@ using namespace std::chrono;
 namespace {
   // For deep sleep
   static RTC_DATA_ATTR struct timeval sleep_enter_time;
+  static RTC_DATA_ATTR int boot_count = 0;
 
   const tflite::Model* model = nullptr;
   tflite::MicroInterpreter* interpreter = nullptr;
@@ -125,16 +126,29 @@ void setup() {
   // Get information about the memory area to use for the model's input.
   input = interpreter->input(0);
 
-#ifndef CLI_ONLY_INFERENCE
+  ESP_LOGI("setup", "Done");
+  vTaskDelete(NULL);
+}
+
+void cam_capture_frame(void *pvParameters){
+  #ifndef CLI_ONLY_INFERENCE
   // Initialize Camera
   TfLiteStatus init_status = InitCamera();
   if (init_status != kTfLiteOk) {
     MicroPrintf("InitCamera failed\n");
     return;
   }
-#endif
-}
+  #endif
+  
+  // Get image from provider.
+  if (kTfLiteOk != GetImage(kNumCols, kNumRows, kNumChannels, input->data.int8)) {
+    MicroPrintf("Image capture failed.");
+  }
 
+  ESP_LOGI("cam_capture_frame", "Done");
+  xTaskNotifyGive((TaskHandle_t)pvParameters); // Notify main task
+  vTaskDelete(NULL);
+}
 
 
 #ifndef CLI_ONLY_INFERENCE
@@ -142,11 +156,6 @@ void setup() {
 void loop() {
   // Measure PD_total time
   int64_t start_time_PD = esp_timer_get_time();
-
-  // Get image from provider.
-  if (kTfLiteOk != GetImage(kNumCols, kNumRows, kNumChannels, input->data.int8)) {
-    MicroPrintf("Image capture failed.");
-  }
 
   // Run the model on this input and make sure it succeeds.
   if (kTfLiteOk != interpreter->Invoke()) {
@@ -169,7 +178,7 @@ void loop() {
   int64_t end_time_PD = esp_timer_get_time();
   MicroPrintf("Total PD time taken: %lldms\n", end_time_PD - start_time_PD); // Time in microseconds
   
-  vTaskDelay(1); // to avoid watchdog trigger
+  // vTaskDelay(1); // to avoid watchdog trigger when running in an infinite loop
 }
 #endif
 
@@ -236,7 +245,29 @@ void run_inference(void *ptr) {
 
 
 
-void deep_sleep_start_ext0(){
+void wakeup(){
+  if (boot_count == 0) {
+    ESP_LOGI("BOOT", "Fresh boot, waiting for PIR sensor to initialize...");
+    vTaskDelay(pdMS_TO_TICKS(10000)); // Wait for 10 seconds for PIR sensor to stabilize
+    boot_count++;
+    deep_sleep_start();
+  } else {
+    boot_count++;
+    ESP_ERROR_CHECK(rtc_gpio_hold_dis(EXT_WAKEUP_PIN));
+
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    int sleep_time_s = now.tv_sec - sleep_enter_time.tv_sec;
+    MicroPrintf("Waken up from deep sleep. Time spent in deep sleep: %dms\n", sleep_time_s);
+
+    //gpio_dump_io_configuration() // Does not work
+  }
+}
+
+
+
+void deep_sleep_start(void)
+{
   // Isolate all pins to Sense board
   gpio_num_t sense_gpio_pins[] = {
     // SD card
@@ -261,64 +292,47 @@ void deep_sleep_start_ext0(){
     rtc_gpio_isolate(sense_gpio_pins[i]);
   }
 
-  // Causes system to crash; RTC peripherals said to be default OFF in deep sleep
-  // esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF);
-
+  #if CONFIG_EXAMPLE_EXT0_WAKEUP
   // Enable deep sleep EXT0 wakeup (on HIGH)
-  ESP_ERROR_CHECK(esp_sleep_enable_ext0_wakeup(EXT_WAKEUP_PIN, 1));
-  ESP_ERROR_CHECK(rtc_gpio_pullup_dis(EXT_WAKEUP_PIN));  // Disable pullup
-  ESP_ERROR_CHECK(rtc_gpio_pulldown_en(EXT_WAKEUP_PIN)); // Enable  pulldown
+  ESP_ERROR_CHECK(esp_sleep_enable_ext0_wakeup((gpio_num_t)CONFIG_EXAMPLE_EXT0_WAKEUP_PIN, 1));
+  ESP_ERROR_CHECK(rtc_gpio_pullup_dis((gpio_num_t)CONFIG_EXAMPLE_EXT0_WAKEUP_PIN));  // Disable pullup
+  ESP_ERROR_CHECK(rtc_gpio_pulldown_en((gpio_num_t)CONFIG_EXAMPLE_EXT0_WAKEUP_PIN)); // Enable  pulldown
+  #endif // CONFIG_EXAMPLE_EXT0_WAKEUP
 
-  // Enter deep sleep
-  gettimeofday(&sleep_enter_time, NULL); // Get deep sleep enter time
-  ESP_LOGI("BOOT", "Entering deep sleep now");
-  esp_deep_sleep_start();
-}
+  #if CONFIG_EXAMPLE_EXT1_WAKEUP
+  const int ext_wakeup_pin = CONFIG_EXAMPLE_EXT1_WAKEUP_PIN;
+  const uint64_t ext_wakeup_pin_1_mask = 1ULL << ext_wakeup_pin;
+  const esp_sleep_ext1_wakeup_mode_t ext_wakeup_mode = (esp_sleep_ext1_wakeup_mode_t)CONFIG_EXAMPLE_EXT1_WAKEUP_MODE;
 
+  ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(ext_wakeup_pin_1_mask, ext_wakeup_mode));
 
+  //ESP_ERROR_CHECK(rtc_gpio_hold_en(ext_wakeup_pin));
+  //ESP_ERROR_CHECK(esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_OFF));
 
-void deep_sleep_wakeup(){
-  struct timeval now;
-  gettimeofday(&now, NULL);
-  int sleep_time_s = now.tv_sec - sleep_enter_time.tv_sec;
-  MicroPrintf("Waken up from deep sleep. Time spent in deep sleep: %dms\n", sleep_time_s);
-
-  //gpio_dump_io_configuration()
-}
-
-
-
-void deep_sleep_start_ext1(){
-  // Isolate all pins to Sense board
-  gpio_num_t sense_gpio_pins[] = {
-    // SD card
-    GPIO_NUM_3, 
-    GPIO_NUM_7, 
-    GPIO_NUM_8, 
-    GPIO_NUM_9,
-    // Camera
-    //GPIO_NUM_10, // XMCLK pin, causes camera init to fail after wakeup
-    GPIO_NUM_11, 
-    GPIO_NUM_12, 
-    GPIO_NUM_13,
-    GPIO_NUM_14, 
-    GPIO_NUM_15, 
-    GPIO_NUM_16, 
-    GPIO_NUM_17,
-    GPIO_NUM_18
-    };
-
-  int num_pins = sizeof(sense_gpio_pins) / sizeof(sense_gpio_pins[0]);
-  for (int i = 0; i < num_pins; ++i) {
-    rtc_gpio_isolate(sense_gpio_pins[i]);
-  }
-
-  const int ext_wakeup_pin_1 = 2; // Wakeup on GPIO 2
-  const uint64_t ext_wakeup_pin_1_mask = 1ULL << ext_wakeup_pin_1;
-
-  ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(ext_wakeup_pin_1_mask, ESP_EXT1_WAKEUP_ANY_HIGH));
-  ESP_ERROR_CHECK(rtc_gpio_pullup_dis(EXT_WAKEUP_PIN));
-  ESP_ERROR_CHECK(rtc_gpio_pulldown_en(EXT_WAKEUP_PIN));
+  /* If there are no external pull-up/downs, tie wakeup pins to inactive level with internal pull-up/downs via RTC IO
+   * during deepsleep. However, RTC IO relies on the RTC_PERIPH power domain. Keeping this power domain on will
+   * increase some power comsumption. However, if we turn off the RTC_PERIPH domain or if certain chips lack the RTC_PERIPH
+   * domain, we will use the HOLD feature to maintain the pull-up and pull-down on the pins during sleep.*/
+  #if CONFIG_EXAMPLE_EXT1_USE_INTERNAL_PULLUPS
+  #if SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
+      if (ext_wakeup_mode) {
+          ESP_ERROR_CHECK(rtc_gpio_pullup_dis((gpio_num_t)CONFIG_EXAMPLE_EXT1_WAKEUP_MODE));
+          ESP_ERROR_CHECK(rtc_gpio_pulldown_en((gpio_num_t)CONFIG_EXAMPLE_EXT1_WAKEUP_MODE));
+      } else {
+          ESP_ERROR_CHECK(rtc_gpio_pulldown_dis((gpio_num_t)CONFIG_EXAMPLE_EXT1_WAKEUP_MODE));
+          ESP_ERROR_CHECK(rtc_gpio_pullup_en((gpio_num_t)CONFIG_EXAMPLE_EXT1_WAKEUP_MODE));
+      }
+  #else
+      if (ext_wakeup_mode) {
+          ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)CONFIG_EXAMPLE_EXT1_WAKEUP_MODE));
+          ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)CONFIG_EXAMPLE_EXT1_WAKEUP_MODE));
+      } else {
+          ESP_ERROR_CHECK(gpio_pulldown_dis((gpio_num_t)CONFIG_EXAMPLE_EXT1_WAKEUP_MODE));
+          ESP_ERROR_CHECK(gpio_pullup_en((gpio_num_t)CONFIG_EXAMPLE_EXT1_WAKEUP_MODE));
+      }
+  #endif // SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
+  #endif // CONFIG_EXAMPLE_EXT1_USE_INTERNAL_PULLUPS
+  #endif // CONFIG_EXAMPLE_EXT0_WAKEUP
 
   // Enter deep sleep
   gettimeofday(&sleep_enter_time, NULL); // Get deep sleep enter time
