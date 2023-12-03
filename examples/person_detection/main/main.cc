@@ -25,10 +25,6 @@ limitations under the License.
 #include "esp_cli.h"
 #endif
 
-// Uncomment this line to enable PRODUCTION mode
-// In default mode, PD is run on a loop with no deep sleep enabled
-#define PRODUCTION
-
 void tf_main(void) {
 #if CLI_ONLY_INFERENCE
   setup();

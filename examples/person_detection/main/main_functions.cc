@@ -30,7 +30,6 @@ limitations under the License.
 #include <esp_heap_caps.h>
 #include <esp_timer.h>
 #include <esp_log.h>
-#include "esp_sleep.h"
 #include "esp_main.h"
 
 // For measuring execution time
@@ -41,14 +40,16 @@ using namespace std::chrono;
 #include "driver/gpio.h"
 
 // For deep sleep
+#include "esp_sleep.h"
+#include "esp_wake_stub.h"
 #include "driver/rtc_io.h"
-#define EXT_WAKEUP_PIN GPIO_NUM_2 // GPIO 3 (possibly) taken by CS pin of SD card
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace {
   // For deep sleep
   static RTC_DATA_ATTR struct timeval sleep_enter_time;
   static RTC_DATA_ATTR int boot_count = 0;
+  static RTC_RODATA_ATTR const int max_boot_count = 20;
 
   const tflite::Model* model = nullptr;
   tflite::MicroInterpreter* interpreter = nullptr;
@@ -126,8 +127,19 @@ void setup() {
   // Get information about the memory area to use for the model's input.
   input = interpreter->input(0);
 
+  #ifdef PRODUCTION
   ESP_LOGI("setup", "Done");
   vTaskDelete(NULL);
+  #else
+  #ifndef CLI_ONLY_INFERENCE
+  // Initialize Camera
+  TfLiteStatus init_status = InitCamera();
+  if (init_status != kTfLiteOk) {
+    MicroPrintf("InitCamera failed\n");
+    return;
+  }
+  #endif
+  #endif
 }
 
 void cam_capture_frame(void *pvParameters){
@@ -156,6 +168,13 @@ void cam_capture_frame(void *pvParameters){
 void loop() {
   // Measure PD_total time
   int64_t start_time_PD = esp_timer_get_time();
+
+  #ifndef PRODUCTION
+   // Get image from provider.
+  if (kTfLiteOk != GetImage(kNumCols, kNumRows, kNumChannels, input->data.int8)) {
+    MicroPrintf("Image capture failed.");
+  }
+  #endif
 
   // Run the model on this input and make sure it succeeds.
   if (kTfLiteOk != interpreter->Invoke()) {
@@ -246,29 +265,58 @@ void run_inference(void *ptr) {
 
 
 void wakeup(){
-  if (boot_count == 0) {
+  /*if (boot_count == 0) {
     ESP_LOGI("BOOT", "Fresh boot, waiting for PIR sensor to initialize...");
     vTaskDelay(pdMS_TO_TICKS(10000)); // Wait for 10 seconds for PIR sensor to stabilize
     boot_count++;
     deep_sleep_start();
-  } else {
+  } else {*/
     boot_count++;
-    ESP_ERROR_CHECK(rtc_gpio_hold_dis(EXT_WAKEUP_PIN));
-
+    
     struct timeval now;
     gettimeofday(&now, NULL);
     int sleep_time_s = now.tv_sec - sleep_enter_time.tv_sec;
-    MicroPrintf("Waken up from deep sleep. Time spent in deep sleep: %dms\n", sleep_time_s);
+    ESP_LOGI("BOOT", "Waken up from deep sleep. Time spent in deep sleep: %dms", sleep_time_s);
 
     //gpio_dump_io_configuration() // Does not work
+  //}
+}
+
+
+
+void RTC_IRAM_ATTR wake_stub_block(){
+  // Increment the counter.
+  boot_count++;
+
+  // Print the counter value and wakeup cause.
+  ESP_RTC_LOGI("Wakeup stub: wakeup boot count is %d, blocking PIR wakeup", boot_count);
+
+  // boot_count is < max_boot_count, go back to deep sleep.
+  if (boot_count >= max_boot_count) {
+      // Reset boot_count
+      boot_count = 1;
+
+      // Set the default wake stub.
+      // There is a default version of this function provided in esp-idf.
+      esp_default_wake_deep_sleep();
+
+      // Return from the wake stub function to continue
+      // booting the firmware.
+      return;
   }
+
+  // Print status.
+  ESP_RTC_LOGI("Wakeup stub: returning to deep sleep");
+
+  // Set stub entry, then going to deep sleep again.
+  esp_wake_stub_sleep(&wake_stub_block);
 }
 
 
 
 void deep_sleep_start(void)
 {
-  // Isolate all pins to Sense board
+  // Isolate all pins to Sense board, likely already done by default
   gpio_num_t sense_gpio_pins[] = {
     // SD card
     GPIO_NUM_3, 
@@ -285,7 +333,7 @@ void deep_sleep_start(void)
     GPIO_NUM_16, 
     GPIO_NUM_17,
     GPIO_NUM_18
-    };
+  };
 
   int num_pins = sizeof(sense_gpio_pins) / sizeof(sense_gpio_pins[0]);
   for (int i = 0; i < num_pins; ++i) {
@@ -334,6 +382,9 @@ void deep_sleep_start(void)
   #endif // CONFIG_EXAMPLE_EXT1_USE_INTERNAL_PULLUPS
   #endif // CONFIG_EXAMPLE_EXT0_WAKEUP
 
+  // Enable wakeup stub
+  esp_set_deep_sleep_wake_stub(&wake_stub_block);
+  
   // Enter deep sleep
   gettimeofday(&sleep_enter_time, NULL); // Get deep sleep enter time
   ESP_LOGI("BOOT", "Entering deep sleep now");

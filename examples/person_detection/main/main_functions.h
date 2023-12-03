@@ -16,6 +16,10 @@ limitations under the License.
 #ifndef TENSORFLOW_LITE_MICRO_EXAMPLES_PERSON_DETECTION_MAIN_FUNCTIONS_H_
 #define TENSORFLOW_LITE_MICRO_EXAMPLES_PERSON_DETECTION_MAIN_FUNCTIONS_H_
 
+// Uncomment this line to enable PRODUCTION mode
+// In default mode, PD is run on a loop with no deep sleep enabled
+#define PRODUCTION
+
 // Expose a C friendly interface for main functions.
 #ifdef __cplusplus
 extern "C" {
