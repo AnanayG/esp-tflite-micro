@@ -1,4 +1,15 @@
 menu  "Application Configuration"
+    config STA_SSID
+        string "STA WIFI USERNAME"
+        default "espressif"
+        help
+            SSID for wifi station to connect to.
+
+    config STA_PASSWORD
+        string "STA WIFI PASSWORD"
+        default "test11"
+        help
+            Password for wifi station.
 
 config TFLITE_USE_BSP
     bool

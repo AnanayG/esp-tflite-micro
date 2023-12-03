@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 #include "main_functions.h"
+#include "wifi_connection.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
@@ -27,9 +28,10 @@ limitations under the License.
 
 // Uncomment this line to enable PRODUCTION mode
 // In default mode, PD is run on a loop with no deep sleep enabled
-#define PRODUCTION
+// #define PRODUCTION
 
 void tf_main(void) {
+  wifi_connect();
 #if CLI_ONLY_INFERENCE
   setup();
   esp_cli_start();
