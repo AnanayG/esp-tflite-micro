@@ -56,7 +56,7 @@ void tf_main(void) {
   //  vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
   //}
 
-  deep_sleep_start();
+  deep_sleep_start_with_wake_stub();
 #else
   setup();
   while (true){

@@ -39,6 +39,7 @@ void loop();
 
 // Runs during PRODUCTION mode to enable deep sleep with PIR sensor wakeup.
 void deep_sleep_start();
+void deep_sleep_start_with_wake_stub();
 
 // Runs during PRODUCTION mode to display information when waking up from deep sleep.
 // Performs PIR initialization on intial boot.

@@ -43,6 +43,7 @@ using namespace std::chrono;
 #include "esp_sleep.h"
 #include "esp_wake_stub.h"
 #include "driver/rtc_io.h"
+#include "rtc_wake_stub_pir_debounce.h"
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace {
@@ -157,7 +158,7 @@ void cam_capture_frame(void *pvParameters){
     MicroPrintf("Image capture failed.");
   }
 
-  ESP_LOGI("cam_capture_frame", "Done");
+  ESP_LOGI("cam_capture_frame", "Done\n");
   xTaskNotifyGive((TaskHandle_t)pvParameters); // Notify main task
   vTaskDelete(NULL);
 }
@@ -168,7 +169,7 @@ void cam_capture_frame(void *pvParameters){
 void loop() {
   // Measure PD_total time
   int64_t start_time_PD = esp_timer_get_time();
-
+  
   #ifndef PRODUCTION
    // Get image from provider.
   if (kTfLiteOk != GetImage(kNumCols, kNumRows, kNumChannels, input->data.int8)) {
@@ -284,36 +285,6 @@ void wakeup(){
 
 
 
-void RTC_IRAM_ATTR wake_stub_block(){
-  // Increment the counter.
-  boot_count++;
-
-  // Print the counter value and wakeup cause.
-  ESP_RTC_LOGI("Wakeup stub: wakeup boot count is %d, blocking PIR wakeup", boot_count);
-
-  // boot_count is < max_boot_count, go back to deep sleep.
-  if (boot_count >= max_boot_count) {
-      // Reset boot_count
-      boot_count = 1;
-
-      // Set the default wake stub.
-      // There is a default version of this function provided in esp-idf.
-      esp_default_wake_deep_sleep();
-
-      // Return from the wake stub function to continue
-      // booting the firmware.
-      return;
-  }
-
-  // Print status.
-  ESP_RTC_LOGI("Wakeup stub: returning to deep sleep");
-
-  // Set stub entry, then going to deep sleep again.
-  esp_wake_stub_sleep(&wake_stub_block);
-}
-
-
-
 void deep_sleep_start(void)
 {
   // Isolate all pins to Sense board, likely already done by default
@@ -381,12 +352,25 @@ void deep_sleep_start(void)
   #endif // SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
   #endif // CONFIG_EXAMPLE_EXT1_USE_INTERNAL_PULLUPS
   #endif // CONFIG_EXAMPLE_EXT0_WAKEUP
-
-  // Enable wakeup stub
-  esp_set_deep_sleep_wake_stub(&wake_stub_block);
   
   // Enter deep sleep
   gettimeofday(&sleep_enter_time, NULL); // Get deep sleep enter time
   ESP_LOGI("BOOT", "Entering deep sleep now");
+  esp_deep_sleep_start();
+}
+
+
+
+void deep_sleep_start_with_wake_stub(void)
+{
+  // Set timer wakeup for 5 seconds to debounce PIR
+  esp_sleep_enable_timer_wakeup(5 * 1000000);
+
+  // Enable wakeup stub
+  esp_set_deep_sleep_wake_stub(&wake_stub_PIR_debounce);
+
+  // Enter deep sleep
+  gettimeofday(&sleep_enter_time, NULL); // Get deep sleep enter time
+  ESP_LOGI("BOOT", "Entering deep sleep now for 5 seconds");
   esp_deep_sleep_start();
 }
