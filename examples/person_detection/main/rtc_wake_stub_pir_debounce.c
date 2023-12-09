@@ -50,12 +50,12 @@ void wake_stub_PIR_debounce(void)
 
     // Check PIR sensor state
     if (rtc_gpio_get_level(PIR_SENSOR_PIN) == 0) {
-        //#if CONFIG_EXAMPLE_EXT0_WAKEUP
+        #if CONFIG_EXAMPLE_EXT0_WAKEUP
         // Enable deep sleep EXT0 wakeup (on HIGH)
         ESP_ERROR_CHECK(esp_sleep_enable_ext0_wakeup((gpio_num_t)CONFIG_EXAMPLE_EXT0_WAKEUP_PIN, 1));
         ESP_ERROR_CHECK(rtc_gpio_pullup_dis((gpio_num_t)CONFIG_EXAMPLE_EXT0_WAKEUP_PIN));  // Disable pullup
         ESP_ERROR_CHECK(rtc_gpio_pulldown_en((gpio_num_t)CONFIG_EXAMPLE_EXT0_WAKEUP_PIN)); // Enable  pulldown
-        //#endif // CONFIG_EXAMPLE_EXT0_WAKEUP
+        #endif // CONFIG_EXAMPLE_EXT0_WAKEUP
 
         #if CONFIG_EXAMPLE_EXT1_WAKEUP
         const int ext_wakeup_pin = CONFIG_EXAMPLE_EXT1_WAKEUP_PIN;
