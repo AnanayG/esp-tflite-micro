@@ -21,7 +21,6 @@ limitations under the License.
 
 #include "detection_responder.h"
 #include "tensorflow/lite/micro/micro_log.h"
-#include "driver/gpio.h"
 
 // For displaying PD status via built-in LED
 #include "driver/gpio.h"
