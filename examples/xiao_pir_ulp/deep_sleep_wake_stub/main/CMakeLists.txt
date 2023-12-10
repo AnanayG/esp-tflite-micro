@@ -1,3 +1,2 @@
-idf_component_register(SRCS "wake_stub_main.c"
-                            "rtc_wake_stub_PIR_XIAO.c"
+idf_component_register(SRCS "pir_xiao_driver.c"
                     INCLUDE_DIRS ".")
