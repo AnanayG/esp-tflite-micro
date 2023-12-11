@@ -16,6 +16,7 @@ limitations under the License.
 #include "main_functions.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "webserver.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -59,6 +60,8 @@ void tf_main(void) {
   deep_sleep_start_with_wake_stub();
 #else
   setup();
+  xTaskCreatePinnedToCore((TaskFunction_t)&start_event_loop, "wifi_event_loop", 4 * 1024, NULL, 10, NULL, 0);
+  //start_event_loop(); //will not return control
   while (true){
     loop();
     vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second

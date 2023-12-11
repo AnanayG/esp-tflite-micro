@@ -18,7 +18,7 @@ limitations under the License.
 
 // Uncomment this line to enable PRODUCTION mode
 // In default mode, PD is run on a loop with no deep sleep enabled
-#define PRODUCTION
+// #define PRODUCTION
 
 // Expose a C friendly interface for main functions.
 #ifdef __cplusplus
