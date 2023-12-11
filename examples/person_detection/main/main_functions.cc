@@ -206,9 +206,11 @@ void loop() {
   // Generate PD_done signal to notify PIR XIAO
   gpio_reset_pin(GPIO_NUM_8);
   gpio_set_direction(GPIO_NUM_8, GPIO_MODE_OUTPUT);
-  gpio_set_level(GPIO_NUM_8, 1);;
+  gpio_set_level(GPIO_NUM_8, 1);
+
+  // Needed for avoiding the main task to finish and to cause the system to crash
   while(true){
-    // Power is cut off here
+    // Power is cut off at some point in the loop
     vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
   }
   #endif
