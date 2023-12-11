@@ -132,14 +132,14 @@ void setup() {
   ESP_LOGI("setup", "Done");
   vTaskDelete(NULL);
   #else
-  #ifndef CLI_ONLY_INFERENCE
-  // Initialize Camera
-  TfLiteStatus init_status = InitCamera();
-  if (init_status != kTfLiteOk) {
-    MicroPrintf("InitCamera failed\n");
-    return;
-  }
-  #endif
+    #ifndef CLI_ONLY_INFERENCE
+    // Initialize Camera
+    TfLiteStatus init_status = InitCamera();
+    if (init_status != kTfLiteOk) {
+      MicroPrintf("InitCamera failed\n");
+      return;
+    }
+    #endif
   #endif
 }
 
@@ -198,7 +198,20 @@ void loop() {
   int64_t end_time_PD = esp_timer_get_time();
   MicroPrintf("Total PD time taken: %lldms\n", end_time_PD - start_time_PD); // Time in microseconds
   
-  // vTaskDelay(1); // to avoid watchdog trigger when running in an infinite loop
+  #ifndef PRODUCTION
+  vTaskDelay(1); // to avoid watchdog trigger when running in an infinite loop
+  #endif
+
+  #ifdef PRODUCTION_V2
+  // Generate PD_done signal to notify PIR XIAO
+  gpio_reset_pin(GPIO_NUM_8);
+  gpio_set_direction(GPIO_NUM_8, GPIO_MODE_OUTPUT);
+  gpio_set_level(GPIO_NUM_8, 1);;
+  while(true){
+    // Power is cut off here
+    vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
+  }
+  #endif
 }
 #endif
 
@@ -266,12 +279,12 @@ void run_inference(void *ptr) {
 
 
 void wakeup(){
-  /*if (boot_count == 0) {
+  if (boot_count == 0) {
     ESP_LOGI("BOOT", "Fresh boot, waiting for PIR sensor to initialize...");
     vTaskDelay(pdMS_TO_TICKS(10000)); // Wait for 10 seconds for PIR sensor to stabilize
     boot_count++;
     deep_sleep_start();
-  } else {*/
+  } else {
     boot_count++;
     
     struct timeval now;
@@ -280,7 +293,7 @@ void wakeup(){
     ESP_LOGI("BOOT", "Waken up from deep sleep. Time spent in deep sleep: %dms", sleep_time_s);
 
     //gpio_dump_io_configuration() // Does not work
-  //}
+  }
 }
 
 

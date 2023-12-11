@@ -31,7 +31,9 @@ void tf_main(void) {
   esp_cli_start();
   vTaskDelay(portMAX_DELAY);
 #elif defined(PRODUCTION)
+  #ifndef PRODUCTION_V2
   wakeup();
+  #endif
 
   // Get task handle for current (main) task
   TaskHandle_t mainTaskHandle = xTaskGetCurrentTaskHandle();
@@ -49,14 +51,16 @@ void tf_main(void) {
   loop();
 
   // Used during development to avoid being unable to flash new program due to deep sleep.
-  vTaskDelay(pdMS_TO_TICKS(5000)); // Stay on for 5 seconds
+  //vTaskDelay(pdMS_TO_TICKS(5000)); // Stay on for 5 seconds
   
   // Infinite loop to avoid entering deep sleep. 
   //while(true){
   //  vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
   //}
 
+  #ifndef PRODUCTION_V2
   deep_sleep_start_with_wake_stub();
+  #endif
 #else
   setup();
   while (true){
