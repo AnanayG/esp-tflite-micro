@@ -216,7 +216,7 @@ void start_event_loop(void)
     /* Start the server for the first time */
     server = start_webserver();
 
-    while (server) {
-        sleep(5);
-    }
+    //while (server) {
+    //    sleep(5);
+    //}
 }

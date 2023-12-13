@@ -22,10 +22,6 @@ limitations under the License.
 // For displaying PD status via built-in LED
 #define LED_BUILTIN_GPIO GPIO_NUM_21
 
-// Two modes of handling footage capturing. Disable both to disabled footage capturing.
-#define SD_CARD
-// #define STREAMING
-
 #include "tensorflow/lite/c/common.h"
 
 // Called every time the results of a person detection run are available. The
@@ -34,6 +30,6 @@ limitations under the License.
 // does not contain a person. Typically if person_score > no person score, the
 // image is considered to contain a person.  This threshold may be adjusted for
 // particular applications.
-void RespondToDetection(float person_score, float no_person_score);
+bool RespondToDetection(float person_score, float no_person_score);
 
 #endif  // TENSORFLOW_LITE_MICRO_EXAMPLES_PERSON_DETECTION_DETECTION_RESPONDER_H_

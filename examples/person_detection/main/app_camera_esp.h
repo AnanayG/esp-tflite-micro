@@ -262,7 +262,7 @@ limitations under the License.
 extern "C" {
 #endif
 
-int app_camera_init();
+int app_camera_init(int streaming);
 
 #ifdef __cplusplus
 }

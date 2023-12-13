@@ -32,7 +32,7 @@ void tf_main(void) {
   esp_cli_start();
   vTaskDelay(portMAX_DELAY);
 #elif defined(PRODUCTION)
-  #ifdef PRODUCTION_V2
+  #ifndef PRODUCTION_V2
   wakeup();
   #endif
 
@@ -59,9 +59,7 @@ void tf_main(void) {
   //  vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
   //}
   
-  start_event_loop(); //will not return control
-
-  #ifdef PRODUCTION_V2
+  #ifndef PRODUCTION_V2
   deep_sleep_start_with_wake_stub();
   #endif
 #else

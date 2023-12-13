@@ -18,11 +18,15 @@ limitations under the License.
 
 // Uncomment this line to enable PRODUCTION mode
 // In default mode, PD is run on a loop with no deep sleep enabled
-// #define PRODUCTION
+#define PRODUCTION
 
 // Uncomment this line to enable PRODUCTION_V2 mode
 // This version uses two XIAOs to complete the detection hierarchy
-// #define PRODUCTION_V2
+#define PRODUCTION_V2
+
+// Two modes of handling footage capturing. Disable both to disabled footage capturing.
+// #define SD_CARD
+#define STREAMING
 
 // Expose a C friendly interface for main functions.
 #ifdef __cplusplus

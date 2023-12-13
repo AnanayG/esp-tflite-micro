@@ -22,7 +22,7 @@ limitations under the License.
 
 static const char *TAG = "app_camera";
 
-int app_camera_init() {
+int app_camera_init(int streaming) {
 #if ESP_CAMERA_SUPPORTED
 #if CONFIG_CAMERA_MODULE_ESP_EYE || CONFIG_CAMERA_MODULE_ESP32_CAM_BOARD
   /* IO13, IO14 is designed for JTAG by default,
@@ -74,8 +74,14 @@ int app_camera_init() {
   // Frame size must be 96x96 pixels to match the trained model.
   // Pixel format defaults to grayscale to match the trained model.
   // With display support enabled, the pixel format is RGB565 to match the display. The frame is converted to grayscale before it is passed to the trained model.
-  config.pixel_format =  PIXFORMAT_JPEG;
-  config.frame_size =    FRAMESIZE_240X240; // Used to initialize the frame size
+  if (streaming == 1) {
+    config.pixel_format =  PIXFORMAT_JPEG;
+    config.frame_size = FRAMESIZE_UXGA;
+  }
+  else {
+    config.pixel_format =  CAMERA_PIXEL_FORMAT;
+    config.frame_size = CAMERA_FRAME_SIZE;
+  }
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
