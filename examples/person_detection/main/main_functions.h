@@ -20,6 +20,10 @@ limitations under the License.
 // In default mode, PD is run on a loop with no deep sleep enabled
 // #define PRODUCTION
 
+// Uncomment this line to enable PRODUCTION_V2 mode
+// This version uses two XIAOs to complete the detection hierarchy
+#define PRODUCTION_V2
+
 // Expose a C friendly interface for main functions.
 #ifdef __cplusplus
 extern "C" {

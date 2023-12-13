@@ -45,8 +45,16 @@ void app_main(void)
     if (boot_count == 0){
         ++boot_count;
         ESP_LOGI("BOOT", "Fresh boot");
+
         // Sleep for 10 seconds for debouncing PIR
         esp_sleep_enable_timer_wakeup(10 * 1000000);
+
+        // Pull P-MOSFET gate pin to HIGH
+        rtc_gpio_init(PD_GPIO);
+        rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_OUTPUT_ONLY);
+        rtc_gpio_set_level(PD_GPIO, 1);
+
+        esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
         ESP_LOGI("BOOT", "Entering deep sleep now, wakeup in 10 seconds to initialize PIR");
     }
     else{
@@ -54,21 +62,28 @@ void app_main(void)
         if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
             // Enable power delivery to PD_XIAO
             rtc_gpio_init(PD_GPIO);
-            rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_OUTPUT_ONLY);
-            rtc_gpio_set_level(PD_GPIO, 1);
+            rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_INPUT_ONLY);
+            rtc_gpio_pulldown_en(PD_GPIO);
+            rtc_gpio_pullup_dis(PD_GPIO);
+            //rtc_gpio_set_level(PD_GPIO, 0);
+
+            // Delay needed for GPIO output to stabilize when not using an RC delay circuit
+            //vTaskDelay(pdMS_TO_TICKS(1000));
 
             deep_sleep_PD_done_wakeup();
-            esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
             ESP_LOGI("BOOT", "Entering deep sleep now, wakeup on PD_done");
         }
 
         // Wakeup triggered by PD_done
         else if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT1) {
-            rtc_gpio_set_level(PD_GPIO, 0);
-            rtc_gpio_deinit(PD_GPIO);
+            // Disable power delivery to PD_XIAO
+            rtc_gpio_init(PD_GPIO);
+            rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_OUTPUT_ONLY);
+            rtc_gpio_set_level(PD_GPIO, 1);
 
             // Enable 5-second timer sleep to debounce PIR
             esp_sleep_enable_timer_wakeup(5 * 1000000);
+            esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
             ESP_LOGI("BOOT", "Entering deep sleep now, wakeup in 5 seconds to debounce PIR");
         }
 
@@ -82,17 +97,25 @@ void app_main(void)
             if (gpio_get_level(PIR_GPIO) == 1){
                 // Enable power delivery to PD_XIAO
                 rtc_gpio_init(PD_GPIO);
-                rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_OUTPUT_ONLY);
-                rtc_gpio_set_level(PD_GPIO, 1);
-                ESP_LOGI("GPIO", "Enabling power delivery on GPIO_3 (HIGH)");
+                //rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_OUTPUT_ONLY);
+                //rtc_gpio_set_level(PD_GPIO, 0);
+                rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_INPUT_ONLY);
+                rtc_gpio_pulldown_en(PD_GPIO);
+                rtc_gpio_pullup_dis(PD_GPIO);
+                
+                // Delay needed for GPIO output to stabilize when not using an RC delay circuit
+                //vTaskDelay(pdMS_TO_TICKS(1000));
 
                 deep_sleep_PD_done_wakeup();
-                esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
                 ESP_LOGI("BOOT", "Entering deep sleep now, wakeup on PD_done");
             }
 
             // Enable deep sleep on PIR
             else {
+                rtc_gpio_init(PD_GPIO);
+                rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_OUTPUT_ONLY);
+                rtc_gpio_set_level(PD_GPIO, 1);
+
                 esp_sleep_enable_ext0_wakeup(PIR_GPIO, 1);
                 rtc_gpio_pullup_dis(PIR_GPIO);
                 rtc_gpio_pulldown_en(PIR_GPIO);
@@ -102,8 +125,9 @@ void app_main(void)
     }
 
     #ifdef DEVELOPMENT
-    vTaskDelay(pdMS_TO_TICKS(3000));
+    //vTaskDelay(pdMS_TO_TICKS(3000));
     gpio_set_level(GPIO_NUM_21, 1);
+    ESP_LOGI("BOOT", "Final message before deep sleep!");
     #endif
 
     esp_deep_sleep_start();
