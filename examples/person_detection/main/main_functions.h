@@ -22,7 +22,7 @@ limitations under the License.
 
 // Uncomment this line to enable PRODUCTION_V2 mode
 // This version uses two XIAOs to complete the detection hierarchy
-#define PRODUCTION_V2
+// #define PRODUCTION_V2
 
 // Expose a C friendly interface for main functions.
 #ifdef __cplusplus

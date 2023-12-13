@@ -32,7 +32,7 @@ void tf_main(void) {
   esp_cli_start();
   vTaskDelay(portMAX_DELAY);
 #elif defined(PRODUCTION)
-  #ifndef PRODUCTION_V2
+  #ifdef PRODUCTION_V2
   wakeup();
   #endif
 
@@ -58,13 +58,15 @@ void tf_main(void) {
   //while(true){
   //  vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second
   //}
+  
+  start_event_loop(); //will not return control
 
-  #ifndef PRODUCTION_V2
+  #ifdef PRODUCTION_V2
   deep_sleep_start_with_wake_stub();
   #endif
 #else
   setup();
-  //xTaskCreatePinnedToCore((TaskFunction_t)&start_event_loop, "wifi_event_loop", 7 * 1024 * 1024, NULL, 10, NULL, 0);
+  //xTaskCreatePinnedToCore((TaskFunction_t)&start_event_loop, "wifi_event_loop", 128 * 1024, NULL, 10, NULL, 0);
   start_event_loop(); //will not return control
   while (true){
     loop();
@@ -74,6 +76,6 @@ void tf_main(void) {
 }
 
 extern "C" void app_main() {
-  xTaskCreate((TaskFunction_t)&tf_main, "tf_main",  512 * 1024, NULL, 8, NULL);
+  xTaskCreate((TaskFunction_t)&tf_main, "tf_main",  4 * 1024, NULL, 8, NULL);
   vTaskDelete(NULL);
 }
