@@ -80,6 +80,10 @@ void setup() {
   gpio_set_direction(LED_BUILTIN_GPIO, GPIO_MODE_OUTPUT);
   gpio_set_level(LED_BUILTIN_GPIO, 1);
 
+  gpio_reset_pin(GPIO_NUM_8);
+  gpio_set_direction(GPIO_NUM_8, GPIO_MODE_OUTPUT);
+  gpio_set_level(GPIO_NUM_8, 0);
+
   // Map the model into a usable data structure. This doesn't involve any
   // copying or parsing, it's a very lightweight operation.
   model = tflite::GetModel(g_person_detect_model_data);
@@ -204,8 +208,6 @@ void loop() {
 
   #ifdef PRODUCTION_V2
   // Generate PD_done signal to notify PIR XIAO
-  gpio_reset_pin(GPIO_NUM_8);
-  gpio_set_direction(GPIO_NUM_8, GPIO_MODE_OUTPUT);
   gpio_set_level(GPIO_NUM_8, 1);
 
   // Needed for avoiding the main task to finish and to cause the system to crash
