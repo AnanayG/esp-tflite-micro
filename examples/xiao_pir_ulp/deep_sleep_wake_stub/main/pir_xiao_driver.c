@@ -62,8 +62,10 @@ void app_main(void)
         if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
             // Enable power delivery to PD_XIAO
             rtc_gpio_init(PD_GPIO);
-            rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_OUTPUT_ONLY);
-            rtc_gpio_set_level(PD_GPIO, 0);
+            rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_INPUT_ONLY);
+            rtc_gpio_pulldown_en(PD_GPIO);
+            rtc_gpio_pullup_dis(PD_GPIO);
+            //rtc_gpio_set_level(PD_GPIO, 0);
 
             // Delay needed for GPIO output to stabilize when not using an RC delay circuit
             //vTaskDelay(pdMS_TO_TICKS(1000));
@@ -95,9 +97,12 @@ void app_main(void)
             if (gpio_get_level(PIR_GPIO) == 1){
                 // Enable power delivery to PD_XIAO
                 rtc_gpio_init(PD_GPIO);
-                rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_OUTPUT_ONLY);
-                rtc_gpio_set_level(PD_GPIO, 0);
-
+                //rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_OUTPUT_ONLY);
+                //rtc_gpio_set_level(PD_GPIO, 0);
+                rtc_gpio_set_direction(PD_GPIO, RTC_GPIO_MODE_INPUT_ONLY);
+                rtc_gpio_pulldown_en(PD_GPIO);
+                rtc_gpio_pullup_dis(PD_GPIO);
+                
                 // Delay needed for GPIO output to stabilize when not using an RC delay circuit
                 //vTaskDelay(pdMS_TO_TICKS(1000));
 
