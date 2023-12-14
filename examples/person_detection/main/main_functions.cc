@@ -32,6 +32,9 @@ limitations under the License.
 #include <esp_log.h>
 #include "esp_main.h"
 
+#include "webserver.h"
+#include "app_camera_esp.h"
+
 // For measuring execution time
 #include <chrono>
 using namespace std::chrono;
@@ -196,12 +199,26 @@ void loop() {
   float no_person_score_f = (no_person_score - output->params.zero_point) * output->params.scale;
 
   // Respond to detection
-  RespondToDetection(person_score_f, no_person_score_f);
-
+  bool personDetected = RespondToDetection(person_score_f, no_person_score_f);
   // Measure PD_total time
   int64_t end_time_PD = esp_timer_get_time();
   MicroPrintf("Total PD time taken: %lldms\n", end_time_PD - start_time_PD); // Time in microseconds
   
+  if(personDetected){
+    // camera init
+    esp_err_t err = esp_camera_deinit();
+    if (err != ESP_OK) {
+      ESP_LOGE("wifi", "camera init failed %x", err);
+    }
+    app_camera_init(1);
+    #if defined(SD_CARD)
+    // Code for storing captured footage to SD card
+    #elif defined(STREAMING)
+    // Code for streaming captured footage over the internet
+    start_event_loop();
+    #endif // Storing mode
+  }
+
   #ifndef PRODUCTION
   vTaskDelay(1); // to avoid watchdog trigger when running in an infinite loop
   #endif

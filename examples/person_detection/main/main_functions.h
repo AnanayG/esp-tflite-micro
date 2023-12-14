@@ -24,6 +24,10 @@ limitations under the License.
 // This version uses two XIAOs to complete the detection hierarchy
 #define PRODUCTION_V2
 
+// Two modes of handling footage capturing. Disable both to disabled footage capturing.
+// #define SD_CARD
+#define STREAMING
+
 // Expose a C friendly interface for main functions.
 #ifdef __cplusplus
 extern "C" {

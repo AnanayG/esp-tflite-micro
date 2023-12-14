@@ -54,7 +54,7 @@ TfLiteStatus InitCamera() {
 #endif // DISPLAY_SUPPORT
 
 #if ESP_CAMERA_SUPPORTED
-  int ret = app_camera_init();
+  int ret = app_camera_init(0);
   if (ret != 0) {
     MicroPrintf("Camera init failed\n");
     return kTfLiteError;

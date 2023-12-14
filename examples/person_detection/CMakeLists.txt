@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.5)
-set(COMPONENTS main)
-set(EXTRA_COMPONENT_DIRS static_images)
+
+set(EXTRA_COMPONENT_DIRS $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
+
+if("${IDF_TARGET}" STREQUAL "linux")
+    list(APPEND EXTRA_COMPONENT_DIRS "$ENV{IDF_PATH}/tools/mocks/freertos/" "static_images"
+                    "$ENV{IDF_PATH}/examples/protocols/linux_stubs/esp_stubs")
+    set(COMPONENTS main)
+endif()
+
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 function(add_bsp SDKCONFIG BSP TARGET)

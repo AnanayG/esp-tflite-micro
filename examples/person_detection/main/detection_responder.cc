@@ -26,6 +26,7 @@ limitations under the License.
 #include "driver/gpio.h"
 
 #include "esp_main.h"
+
 #if DISPLAY_SUPPORT
 #include "image_provider.h"
 #include "bsp/esp-bsp.h"
@@ -61,7 +62,7 @@ static void create_gui(void)
 }
 #endif // DISPLAY_SUPPORT
 
-void RespondToDetection(float person_score, float no_person_score) {
+bool RespondToDetection(float person_score, float no_person_score) {
   int person_score_int = (person_score) * 100 + 0.5;
   int no_person_score_int = (no_person_score) * 100 + 0.5;
 
@@ -86,16 +87,11 @@ void RespondToDetection(float person_score, float no_person_score) {
   // If significant differences in this code section exist between the two storing modes, move this section to below
   // MicroPrintf("Beginning footage capturing...");
 
-#if defined(SD_CARD)
-  // Code for storing captured footage to SD card
-#elif defined(STREAMING)
-  // Code for streaming captured footage over the internet
-#endif // Storing mode
-
   // Turn on on-board LED when person is detected
   // Built-in LED appears to turn on when output is LOW
   gpio_set_level(LED_BUILTIN_GPIO, !(person_score > no_person_score));
 
   // Display person score and no person score to terminal
   MicroPrintf("person score:%d%%, no person score %d%%", person_score_int, no_person_score_int);
+  return (person_score > no_person_score);
 }

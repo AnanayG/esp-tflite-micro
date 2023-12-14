@@ -256,13 +256,13 @@ limitations under the License.
 #define CAMERA_PIN_PCLK CONFIG_CAMERA_PIN_PCLK
 #endif
 
-#define XCLK_FREQ_HZ 20000000 // 20 MHz default; 16 MHz to enable EDMA mode (has extra delay on first capture)
+#define XCLK_FREQ_HZ 10000000 // 20 MHz default; 16 MHz to enable EDMA mode (has extra delay on first capture)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int app_camera_init();
+int app_camera_init(int streaming);
 
 #ifdef __cplusplus
 }

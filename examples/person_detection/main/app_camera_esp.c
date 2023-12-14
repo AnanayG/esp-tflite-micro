@@ -22,7 +22,7 @@ limitations under the License.
 
 static const char *TAG = "app_camera";
 
-int app_camera_init() {
+int app_camera_init(int streaming) {
 #if ESP_CAMERA_SUPPORTED
 #if CONFIG_CAMERA_MODULE_ESP_EYE || CONFIG_CAMERA_MODULE_ESP32_CAM_BOARD
   /* IO13, IO14 is designed for JTAG by default,
@@ -64,9 +64,9 @@ int app_camera_init() {
   config.pin_pwdn =      CAMERA_PIN_PWDN;
   config.pin_reset =     CAMERA_PIN_RESET;
   config.xclk_freq_hz =  XCLK_FREQ_HZ;
-  // config.jpeg_quality =  10; // For streaming
-  config.fb_count =      2; // fb = 1 seems to work now but didn't work at one point.
-  config.fb_location =   CAMERA_FB_IN_DRAM;
+  config.jpeg_quality =  12; // For streaming
+  config.fb_count =      1; // fb = 1 seems to work now but didn't work at one point.
+  config.fb_location =   CAMERA_FB_IN_PSRAM;
   config.grab_mode =     CAMERA_GRAB_LATEST; // CAMERA_GRAB_LATEST is needed for the PD to be run on the latest image (with fb_count = 2)
 #endif // CONFIG_TFLITE_USE_BSP
 
@@ -74,8 +74,14 @@ int app_camera_init() {
   // Frame size must be 96x96 pixels to match the trained model.
   // Pixel format defaults to grayscale to match the trained model.
   // With display support enabled, the pixel format is RGB565 to match the display. The frame is converted to grayscale before it is passed to the trained model.
-  config.pixel_format =  CAMERA_PIXEL_FORMAT;
-  config.frame_size =    CAMERA_FRAME_SIZE; // Used to initialize the frame size
+  if (streaming == 1) {
+    config.pixel_format =  PIXFORMAT_JPEG;
+    config.frame_size = FRAMESIZE_UXGA;
+  }
+  else {
+    config.pixel_format =  CAMERA_PIXEL_FORMAT;
+    config.frame_size = CAMERA_FRAME_SIZE;
+  }
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
