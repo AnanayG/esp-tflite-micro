@@ -35,12 +35,19 @@ limitations under the License.
 // ensure there's a specialized implementation that accesses hardware APIs.
 #ifndef CONFIG_PERSON_DETECTION_STATIC
 
+typedef struct {
+        uint8_t * buf = NULL;
+        size_t buf_len = 0;
+} bmpframe_t;
+
 // Returns buffer to be displayed
 void *image_provider_get_display_buf();
 
 TfLiteStatus GetImage(int image_width, int image_height, int channels, int8_t* image_data);
 
 TfLiteStatus InitCamera();
+
+bmpframe_t* convert_frame_to_bmp();
 
 #endif /* CONFIG_PERSON_DETECTION_STATIC */
 

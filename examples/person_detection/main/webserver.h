@@ -1,6 +1,8 @@
 
 #include "esp_event.h"
 #include <esp_http_server.h>
+#include "esp_camera.h"
+#include "image_provider.h"
 
 #pragma once
 
@@ -14,7 +16,7 @@ static void connect_handler(void* arg, esp_event_base_t event_base,
                             int32_t event_id, void* event_data);
 static void disconnect_handler(void* arg, esp_event_base_t event_base,
                                int32_t event_id, void* event_data);
-void start_event_loop(void);
+void start_event_loop(bmpframe_t * trigger_img);
 
 #ifdef __cplusplus
 }

@@ -30,6 +30,8 @@ limitations under the License.
 #include "image_provider.h"
 #include "esp_main.h"
 
+#include "esp_err.h"
+
 static const char* TAG = "app_camera";
 
 static uint16_t *display_buf; // buffer to hold data to be sent to display
@@ -125,4 +127,27 @@ TfLiteStatus GetImage(int image_width, int image_height, int channels, int8_t* i
 #else
   return kTfLiteError;
 #endif
+}
+
+// Get the image from the camera and convert into jpg
+bmpframe_t* convert_frame_to_bmp(){
+  camera_fb_t* fb = NULL;
+  esp_err_t res = ESP_OK;
+  int64_t fr_start = esp_timer_get_time();
+  
+  fb = esp_camera_fb_get();
+  if (!fb) {
+    ESP_LOGE(TAG, "Camera capture failed");
+    return NULL;
+  }
+
+  bmpframe_t *frame_inst = NULL;
+  bool converted = frame2bmp(fb, &(frame_inst->buf), &(frame_inst->buf_len));
+  esp_camera_fb_return(fb);
+
+  if(!converted){
+      ESP_LOGE(TAG, "BMP conversion failed");
+      return NULL;
+  }
+  return frame_inst;
 }

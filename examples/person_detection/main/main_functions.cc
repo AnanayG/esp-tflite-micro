@@ -205,7 +205,17 @@ void loop() {
   MicroPrintf("Total PD time taken: %lldms\n", end_time_PD - start_time_PD); // Time in microseconds
   
   if(personDetected){
-    // camera init
+    // this converts the last frame(used for NN)
+    bmpframe_t* bmp_img = convert_frame_to_bmp();
+    /*
+    camera_fb_t * bmp_fb;
+    camera_fb_t * bmp_fb_src = NULL;
+    bmp_fb_src = esp_camera_fb_get();
+    //bmp_fb = *bmp_fb_src;
+    memcpy(bmp_fb, bmp_fb_src, sizeof(*bmp_fb_src));
+    */
+
+    // camera deinit and init
     esp_err_t err = esp_camera_deinit();
     if (err != ESP_OK) {
       ESP_LOGE("wifi", "camera init failed %x", err);
@@ -215,7 +225,7 @@ void loop() {
     // Code for storing captured footage to SD card
     #elif defined(STREAMING)
     // Code for streaming captured footage over the internet
-    start_event_loop();
+    start_event_loop(bmp_img);
     #endif // Storing mode
   }
 

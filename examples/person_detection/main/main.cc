@@ -65,7 +65,7 @@ void tf_main(void) {
 #else
   setup();
   //xTaskCreatePinnedToCore((TaskFunction_t)&start_event_loop, "wifi_event_loop", 128 * 1024, NULL, 10, NULL, 0);
-  start_event_loop(); //will not return control
+  start_event_loop(NULL); //will not return control
   while (true){
     loop();
     vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1 second

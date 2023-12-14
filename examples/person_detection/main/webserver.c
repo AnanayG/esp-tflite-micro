@@ -15,6 +15,10 @@
 #include "img_converters.h"
 
 #include "app_camera_esp.h"
+typedef struct {
+        uint8_t * buf;
+        size_t buf_len;
+} bmpframe_t;
 
 #define EXAMPLE_HTTP_QUERY_KEY_MAX_LEN  (64)
 static const char *SERVER_TAG = "server";
@@ -23,6 +27,8 @@ static const char *SERVER_TAG = "server";
 static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
 static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
+
+bmpframe_t * bmpimg;
 
 esp_err_t jpg_stream_httpd_handler(httpd_req_t *req){
     camera_fb_t * fb = NULL;
@@ -133,7 +139,39 @@ static const httpd_uri_t hello = {
     .handler   = hello_get_handler,
     /* Let's pass response string in user
      * context to demonstrate it's usage */
-    .user_ctx  = "Hello from the new World! Open /stream to start the  live stream!"
+    .user_ctx  = "Hello from the new World! \nOpen /stream to start the  live stream!\nOpen /trigger to see the NN trigger frame"
+};
+
+/* An HTTP GET handler */
+static esp_err_t trigger_get_handler(httpd_req_t *req)
+{
+    int64_t fr_start = esp_timer_get_time();
+    esp_err_t res = ESP_OK;
+
+    /*
+    uint8_t * bmpbuf = NULL;
+    size_t bmpbuf_len = 0;
+    bool converted = frame2bmp(bmpfb, &bmpbuf, &bmpbuf_len);
+    if(!converted){
+        ESP_LOGE(SERVER_TAG, "BMP conversion failed");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+    */
+
+    res = httpd_resp_set_type(req, "image/x-windows-bmp")
+       || httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.bmp")
+       || httpd_resp_send(req, (const char *)bmpimg->buf, bmpimg->buf_len);
+    free(bmpimg);
+    int64_t fr_end = esp_timer_get_time();
+    ESP_LOGI(SERVER_TAG, "BMP: %uKB", (uint32_t)(bmpimg->buf_len/1024), (uint32_t)((fr_end - fr_start)/1000));
+    return res;
+}
+
+static const httpd_uri_t trigger_frame = {
+    .uri       = "/trigger",
+    .method    = HTTP_GET,
+    .handler   = trigger_get_handler,
 };
 
 static httpd_handle_t start_webserver(void)
@@ -156,6 +194,7 @@ static httpd_handle_t start_webserver(void)
     {
         ESP_LOGI(SERVER_TAG, "Registering URI handlers");
         httpd_register_uri_handler(server, &hello);
+        httpd_register_uri_handler(server, &trigger_frame);
         httpd_register_uri_handler(server, &jpg_stream);
     }
     else {
@@ -196,8 +235,9 @@ static void connect_handler(void* arg, esp_event_base_t event_base,
 }
 #endif // !CONFIG_IDF_TARGET_LINUX
 
-void start_event_loop(void)
+void start_event_loop(bmpframe_t* trigger_img)
 {
+    bmpimg = trigger_img;
     static httpd_handle_t server = NULL;
 
     ESP_ERROR_CHECK(nvs_flash_init());
